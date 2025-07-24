@@ -4,23 +4,34 @@ format: html
 editor: visual
 ---
 
-## Quarto
+## Introduction
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+For this project, I will be exploring a dataset that contains binary information related to diabetes. This data comes from a survey with 253,680 responses, and I am primarily interested in investigating whether the presence of diabetes can be predicted based off of other health/personal factors. The response variable is Diabetes_binary, which is a 0 if no diabetes, 1 if prediabetes, or 2 if diabetes. Other variables of interest include HighBP (binary marker for high blood pressure), HighChol (binary marker for high cholesterol), BMI, Smoker (binary marker for smoking at least 100 cigarettes in your life or not), Sex (0 = female, 1 = male), and Age (according to a factored level). In this EDA, I intend to explore initial relationships between a select number of these variables and the Diabetes factored indicator by observing plots and other exploratory analyses. After this initial data exploration, I will move on to modeling with the goal of creating a model that predicts whether a respondent will have diabetes according to certain variables with high accuracy.
 
-## Running Code
+## Data
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
-```{r}
-1 + 1
+### Importing the Data
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
+diab_data <- diab_data |>
+  #Converting a few variables of interest to factor
+  mutate(Diabetes_binary = as_factor(Diabetes_binary),
+         HighBP = as_factor(HighBP),
+         HighChol = as_factor(HighChol),
+         Smoker = as_factor(Smoker),
+         Sex = as_factor(Sex),
+         Age = as_factor(Age)
+         ) |>
+  #Removing any rows with NA
+  drop_na()
 ```
 
-You can add options to executable code like this
 
-```{r}
-#| echo: false
-2 * 2
-```
+## Summarizations
 
-The `echo: false` option disables the printing of code (only output is displayed).
+### Variables to Explore
+
+The variables I am most interested in exploring in this EDA are BMI, Age and HighBP. 
+
+[Click here for the EDA Page](EDA.html)
