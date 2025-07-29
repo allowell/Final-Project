@@ -4,6 +4,38 @@ format: html
 editor: visual
 ---
 
+## Introduction
+
+For this project, I will be exploring a dataset that contains binary information related to diabetes. This data comes from a survey with 253,680 responses, and I am primarily interested in investigating whether the presence of diabetes can be predicted based off of other health/personal factors. The response variable is Diabetes_binary, which is a 0 if no diabetes, 1 if prediabetes, or 2 if diabetes. Other variables of interest include HighBP (binary marker for high blood pressure), HighChol (binary marker for high cholesterol), BMI, Smoker (binary marker for smoking at least 100 cigarettes in your life or not), Sex (0 = female, 1 = male), and Age (according to a factored level). In this Modeling section, I intend to find the most optimal model to predict the Disease_binary variable.
+
+## Splitting the data
+
+First, loading in the data
+```{r}
+library(tidyverse)
+diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
+diab_data <- diab_data |>
+  #Converting a few variables of interest to factor
+  mutate(Diabetes_binary = as_factor(Diabetes_binary),
+         HighBP = as_factor(HighBP),
+         HighChol = as_factor(HighChol),
+         Smoker = as_factor(Smoker),
+         Sex = as_factor(Sex),
+         Age = as_factor(Age)
+         ) |>
+  #Removing any rows with NA
+  drop_na()
+```
+
+To start, I need to split the data into training and testing sets. For this particular investigation, I plan on splitting the original data randomly using the rsample package and using 70% for training and 30% for testing. I am also using a seed so that my results and interpretations are reproducible.
+```{r}
+library(rsample)
+set.seed(101)
+
+diab_split <- initial_split(diab_data, prop = 0.7)
+train <- training(diab_split)
+test <- testing(diab_split)
+```
 
 
 

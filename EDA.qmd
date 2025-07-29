@@ -11,6 +11,7 @@ For this project, I will be exploring a dataset that contains binary information
 ## Data
 
 ### Importing the Data
+
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
@@ -27,11 +28,48 @@ diab_data <- diab_data |>
   drop_na()
 ```
 
-
 ## Summarizations
 
-### Variables to Explore
+The variables I am most interested in exploring in this EDA are BMI, Age and HighBP.
 
-The variables I am most interested in exploring in this EDA are BMI, Age and HighBP. 
+### Univariate exploration of Diabetes indicator variable
+```{r}
+table(diab_data$Diabetes_binary)
+```
+
+```{r}
+table(diab_data$Diabetes_binary, diab_data$Age)
+```
+
+```{r}
+table(diab_data$Diabetes_binary, diab_data$HighBP)
+```
+
+```{r}
+summary_bmi <- diab_data %>%
+  summarise(
+    mean_BMI = mean(BMI, na.rm = TRUE),
+    sd_BMI = sd(BMI, na.rm = TRUE),
+  )
+print(summary_bmi)
+```
+
+```{r}
+#Dist of diabetes
+ggplot(diab_data, aes(x = Diabetes_binary)) +
+  geom_bar(fill = "blue") +
+  scale_x_discrete(labels = c("0" = "No Diabetes", "1" = "Diabetes")) +
+  labs(title = "Distribution of Diabetes Status", x = "Diabetes Status", y = "Count")
+```
+
+```{r}
+#BMI by diabetes
+ggplot(diab_data, aes(x = Diabetes_binary, y = BMI)) +
+  geom_boxplot(fill = "red") +
+  scale_x_discrete(labels = c("0" = "No Diabetes", "1" = "Diabetes")) +
+  labs(title = "BMI by Diabetes Status", x = "Diabetes Status", y = "BMI")
+```
+
+
 
 [Click here for the EDA Page](EDA.html)
