@@ -185,22 +185,28 @@ rf_best_params <- select_best(rf_fit, metric = "mn_log_loss")
 rf_final_wkf <- rf_wkf |>
   finalize_workflow(rf_best_params)
 rf_final_fit <- rf_final_wkf |>
-  last_fit(diab_split, metrics = mn_log_loss)
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
 ```
 
 ### Find Best Model
 
 ```{r}
-log_fit <- fit(LR3_wkf, data = train)
-class_fit <- fit(tree_final_wkf, data = train)
-rand_fit <- fit(rf_final_wkf, data = train)
+rf_final_fit <- rf_final_wkf |>
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
 
-log_preds <- predict(log_fit, test)
-class_preds <- predict(class_fit, test)
-rand_preds <- predict(rand_fit, test)
+class_final_fit <- tree_final_wkf |>
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
+
+log_final_fit <- LR3_wkf |>
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
+
+rbind(log_final_fit |> collect_metrics(), 
+      class_final_fit |> collect_metrics(), 
+      rf_final_fit |> collect_metrics()) |>
+  mutate(Model = c("Logistic Regression", "Classification Tree", "Random Forest")) |>
+  select(Model, everything())
 ```
-
-
+As we can see, the model with the lowest log loss is the random forest model, with a log loss of 0.3411.
 
 
 
