@@ -10,19 +10,21 @@ For this project, I will be exploring a dataset that contains binary information
 
 ## Splitting the data
 
-Loading in all required packages for this document first 
-```{r}
+Loading in all required packages for this document first
+
+```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(caret)
 library(tidymodels)
 library(yardstick)
 library(rsample)
 library(glmnet)
+library(ranger)
 ```
 
 Next, loading in the data
+
 ```{r}
-library(tidyverse)
 diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
 diab_data <- diab_data |>
   #Converting a few variables of interest to factor
@@ -38,6 +40,7 @@ diab_data <- diab_data |>
 ```
 
 To start, I need to split the data into training and testing sets. For this particular investigation, I plan on splitting the original data randomly using the rsample package and using 70% for training and 30% for testing. I am also using a seed so that my results and interpretations are reproducible.
+
 ```{r}
 set.seed(101)
 
@@ -47,12 +50,12 @@ test <- testing(diab_split)
 ```
 
 Next, setting the folds that will be used for the model selection of all our following models
+
 ```{r}
 set.seed(101)
 
 diab_folds <- vfold_cv(train, 5)
 ```
-
 
 ## Modeling
 
@@ -61,60 +64,63 @@ diab_folds <- vfold_cv(train, 5)
 Logistic regression explanation.
 
 For all models
+
 ```{r}
 LR_spec <- logistic_reg() |>
   set_engine("glm")
 ```
 
-
 #### Model 1: Age and BMI as predictors
+
 ```{r}
 LR1_rec <- recipe(Diabetes_binary ~ Age + BMI, 
                   data = train) |>
-  step_normalize(all_numeric()) |>
-  step_dummy(all_nominal())
+  step_normalize(BMI) |>
+  step_dummy(Age)
 
 LR1_wkf <- workflow() |>
   add_recipe(LR1_rec) |>
   add_model(LR_spec)
 
 LR1_fit <- LR1_wkf |>
-  fit_resamples(diab_folds, metrics = mn_log_loss())
+  fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
 
-
 #### Model 2: Age, BMI, and HighBP as predictors
+
 ```{r}
 LR2_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
-  step_normalize(all_numeric()) |>
-  step_dummy(all_nominal())
+  step_normalize(BMI) |>
+  step_dummy(Age, HighBP)
 
 LR2_wkf <- workflow() |>
   add_recipe(LR2_rec) |>
   add_model(LR_spec)
 
 LR2_fit <- LR2_wkf |>
-  fit_resamples(diab_folds, metrics = mn_log_loss())
+  fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
 
-
 #### Model 3: Age, BMI, HighBP, Age and BMI interaction and HighBP and Age interaction.
+
 ```{r}
-LR3_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP + Age:BMI + Age:HighBP, 
+LR3_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
-  step_normalize(all_numeric()) |>
-  step_dummy(all_nominal())
+  step_normalize(BMI) |>
+  step_dummy(Age, HighBP) |>
+  step_interact( ~ starts_with("Age_"):BMI + starts_with("Age_"):starts_with("HighBP_"))
 
 LR3_wkf <- workflow() |>
   add_recipe(LR3_rec) |>
   add_model(LR_spec)
 
 LR3_fit <- LR3_wkf |>
-  fit_resamples(diab_folds, metrics = mn_log_loss())
+  fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
 
 #### Finding the best model
+
 ```{r}
 rbind(LR1_fit |> collect_metrics(),
       LR2_fit |> collect_metrics(),
@@ -122,22 +128,22 @@ rbind(LR1_fit |> collect_metrics(),
   mutate(Model = c("Model1", "Model2", "Model3")) |>
   select(Model, everything())
 ```
-As we can see from the log loss metrics, our best model is ___.
 
-
+As we can see from the log loss metrics, our best model is Model 3 since we choose the model with the lowest log loss metric, though Model 2 is close behind. 
 
 ### Classification Tree
+
 ```{r}
 tree_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
-  step_dummy(all_nominal()) |>
-  step_normalize(all_numeric())
+  step_normalize(BMI) |>
+  step_dummy(HighBP)
 
 tree_mod <- decision_tree(tree_depth = tune(),
                           min_n = 20,
                           cost_complexity = tune()) |>
   set_engine("rpart") |>
-  set_mode("regression")
+  set_mode("classification")
 
 tree_wkf <- workflow() |>
   add_recipe(tree_rec) |>
@@ -149,34 +155,30 @@ tree_grid <- grid_regular(cost_complexity(),
 
 tree_fits <- tree_wkf |> 
   tune_grid(resamples = diab_folds,
-            grid = tree_grid)
+            grid = tree_grid,
+            metrics = metric_set(mn_log_loss))
 
-tree_fits |> 
-  collect_metrics() |>
-  filter(.metric == "log_loss") |>
-  arrange(mean)
-
-tree_best_params <- select_best(tree_fits, metric = "log_loss")
+tree_best_params <- select_best(tree_fits, metric = "mn_log_loss")
 
 tree_final_wkf <- tree_wkf |>
   finalize_workflow(tree_best_params)
 ```
 
-
 ### Random Forest
+
 ```{r}
-rf_spec <- rand_forest(mtry = tune()) |>
+rf_spec <- rand_forest(mtry = tune(), trees = 100) |>
   set_engine("ranger") |>
   set_mode("classification")
 
 rf_wkf <- workflow() |>
-  add_recipe(LR3_rec) |>
+  add_recipe(tree_rec) |>
   add_model(rf_spec)
 
 rf_fit <- rf_wkf |>
-  tun_grid(resamples = diab_folds,
-           grid = 7,
-           metrics = mn_log_loss())
+  tune_grid(resamples = diab_folds,
+           grid = 3,
+           metrics = metric_set(mn_log_loss))
 
 rf_best_params <- select_best(rf_fit, metric = "mn_log_loss")
 
@@ -186,13 +188,26 @@ rf_final_fit <- rf_final_wkf |>
   last_fit(diab_split, metrics = mn_log_loss)
 ```
 
-
 ### Find Best Model
+
 ```{r}
-LR_final_fit |> collect_metrics()
-class_final_fit |> collect_metrics()
-rf_final_fit |> collect_metrics()
+log_fit <- fit(LR3_wkf, data = train)
+class_fit <- fit(tree_final_wkf, data = train)
+rand_fit <- fit(rf_final_wkf, data = train)
+
+log_preds <- predict(log_fit, test)
+class_preds <- predict(class_fit, test)
+rand_preds <- predict(rand_fit, test)
 ```
+
+
+
+
+
+
+
+
+
 
 
 
