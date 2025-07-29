@@ -42,8 +42,10 @@ diab_data <- diab_data |>
 To start, I need to split the data into training and testing sets. For this particular investigation, I plan on splitting the original data randomly using the rsample package and using 70% for training and 30% for testing. I am also using a seed so that my results and interpretations are reproducible.
 
 ```{r}
+#Setting a seed for reproducability
 set.seed(101)
 
+#Creating training and testing data
 diab_split <- initial_split(diab_data, prop = 0.7)
 train <- training(diab_split)
 test <- testing(diab_split)
@@ -53,7 +55,7 @@ Next, setting the folds that will be used for the model selection of all our fol
 
 ```{r}
 set.seed(101)
-
+#Creating 5 folds of training data
 diab_folds <- vfold_cv(train, 5)
 ```
 
@@ -61,10 +63,9 @@ diab_folds <- vfold_cv(train, 5)
 
 ### Logistic Regression
 
-Logistic regression explanation.
+Next, we will begin fitting models to find the best predictor of our test set. We will start with logistic regression, which is a type of regression model that lets us fit models based on response variables that are not numeric. We use this when our response is binary or factored, for example. In this dataset, we are interested in predicting the diabetes binary variable, meaning that logistic regression will work well here.
 
-For all models
-
+First, setting up the model type and engine that will be used for all three of our potential logistic regression models.
 ```{r}
 LR_spec <- logistic_reg() |>
   set_engine("glm")
@@ -73,15 +74,16 @@ LR_spec <- logistic_reg() |>
 #### Model 1: Age and BMI as predictors
 
 ```{r}
+#Creating recipe for first model
 LR1_rec <- recipe(Diabetes_binary ~ Age + BMI, 
                   data = train) |>
   step_normalize(BMI) |>
   step_dummy(Age)
-
+#Putting it in a workflow
 LR1_wkf <- workflow() |>
   add_recipe(LR1_rec) |>
   add_model(LR_spec)
-
+#Fitting to our CV folds
 LR1_fit <- LR1_wkf |>
   fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
@@ -89,15 +91,16 @@ LR1_fit <- LR1_wkf |>
 #### Model 2: Age, BMI, and HighBP as predictors
 
 ```{r}
+#Creating recipe for second model
 LR2_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
   step_normalize(BMI) |>
   step_dummy(Age, HighBP)
-
+#Putting it in a workflow
 LR2_wkf <- workflow() |>
   add_recipe(LR2_rec) |>
   add_model(LR_spec)
-
+#Fitting to our CV folds
 LR2_fit <- LR2_wkf |>
   fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
@@ -105,16 +108,17 @@ LR2_fit <- LR2_wkf |>
 #### Model 3: Age, BMI, HighBP, Age and BMI interaction and HighBP and Age interaction.
 
 ```{r}
+#Creating recipe for third model using interaction
 LR3_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
   step_normalize(BMI) |>
   step_dummy(Age, HighBP) |>
   step_interact( ~ starts_with("Age_"):BMI + starts_with("Age_"):starts_with("HighBP_"))
-
+#Putting it in a workflow
 LR3_wkf <- workflow() |>
   add_recipe(LR3_rec) |>
   add_model(LR_spec)
-
+#Fitting to our CV folds
 LR3_fit <- LR3_wkf |>
   fit_resamples(diab_folds, metrics = metric_set(mn_log_loss))
 ```
@@ -122,6 +126,7 @@ LR3_fit <- LR3_wkf |>
 #### Finding the best model
 
 ```{r}
+#Putting our metrics for each model together to find best one
 rbind(LR1_fit |> collect_metrics(),
       LR2_fit |> collect_metrics(),
       LR3_fit |> collect_metrics()) |>
@@ -129,90 +134,97 @@ rbind(LR1_fit |> collect_metrics(),
   select(Model, everything())
 ```
 
-As we can see from the log loss metrics, our best model is Model 3 since we choose the model with the lowest log loss metric, though Model 2 is close behind. 
+As we can see from the log loss metrics, our best model is Model 3 since we choose the model with the lowest log loss metric.
 
 ### Classification Tree
 
+A classification tree model is used when we want to classify, or predict, whether a value belongs in a specific group or not. It splits the predictor space into regions, and the most prevalent class in the region is used as the prediction. This is helpful in our case as we can use it to predict whether an abservation would have diabetes or not based on the predictors and it will be predicted into that class.
+
 ```{r}
+#Creating general tree recipe to use for both classification and Random Forest
 tree_rec <- recipe(Diabetes_binary ~ Age + BMI + HighBP, 
                   data = train) |>
   step_normalize(BMI) |>
   step_dummy(HighBP)
-
+#Making model setup
 tree_mod <- decision_tree(tree_depth = tune(),
                           min_n = 20,
                           cost_complexity = tune()) |>
   set_engine("rpart") |>
   set_mode("classification")
-
+#Creating workflow
 tree_wkf <- workflow() |>
   add_recipe(tree_rec) |>
   add_model(tree_mod)
-
+#Setting up grid
 tree_grid <- grid_regular(cost_complexity(),
                           tree_depth(),
                           levels = c(10, 5))
-
+#Fitting based on grid according to log loss
 tree_fits <- tree_wkf |> 
   tune_grid(resamples = diab_folds,
             grid = tree_grid,
             metrics = metric_set(mn_log_loss))
-
+#Extracting best parameters from our fits
 tree_best_params <- select_best(tree_fits, metric = "mn_log_loss")
-
+#Finalizing workflow
 tree_final_wkf <- tree_wkf |>
   finalize_workflow(tree_best_params)
 ```
 
 ### Random Forest
 
+Lastly, a random forest model is a regression model that created multiple trees from bootstrap sampling and averages the results to obtain a final prediction. In our case, we will predict the probability that a certain observation falls in each class of the diabetes binary variable. In random forests, not all of the predictors are used at each step, as the number of parameters to use is actually a tuning parameter, and the optimal number will be selected after running the model
+
 ```{r}
+#Specifying engine and mode
+#I used trees = 100 because original was taking over an hour to run
 rf_spec <- rand_forest(mtry = tune(), trees = 100) |>
   set_engine("ranger") |>
   set_mode("classification")
-
+#Creating workflow
 rf_wkf <- workflow() |>
   add_recipe(tree_rec) |>
   add_model(rf_spec)
-
+#Fitting model
 rf_fit <- rf_wkf |>
   tune_grid(resamples = diab_folds,
            grid = 3,
            metrics = metric_set(mn_log_loss))
-
+#Extracting best parameters
 rf_best_params <- select_best(rf_fit, metric = "mn_log_loss")
-
+#Finalizing workflow
 rf_final_wkf <- rf_wkf |>
   finalize_workflow(rf_best_params)
-rf_final_fit <- rf_final_wkf |>
-  last_fit(diab_split, metrics = metric_set(mn_log_loss))
 ```
 
 ### Find Best Model
 
+To find the best model, we are going to fit the logistic regression model, classification tree and random forest model onto the testing data and select the best one based on log loss like we did when comparing logistic regression models.
 ```{r}
+#Fit each model onto test set
+log_final_fit <- LR3_wkf |>
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
+class_final_fit <- tree_final_wkf |>
+  last_fit(diab_split, metrics = metric_set(mn_log_loss))
 rf_final_fit <- rf_final_wkf |>
   last_fit(diab_split, metrics = metric_set(mn_log_loss))
 
-class_final_fit <- tree_final_wkf |>
-  last_fit(diab_split, metrics = metric_set(mn_log_loss))
-
-log_final_fit <- LR3_wkf |>
-  last_fit(diab_split, metrics = metric_set(mn_log_loss))
-
+#Combine metrics together to easily see the best performing model
 rbind(log_final_fit |> collect_metrics(), 
       class_final_fit |> collect_metrics(), 
       rf_final_fit |> collect_metrics()) |>
   mutate(Model = c("Logistic Regression", "Classification Tree", "Random Forest")) |>
   select(Model, everything())
 ```
-As we can see, the model with the lowest log loss is the random forest model, with a log loss of 0.3411.
+As we can see, the model with the lowest log loss is the random forest model, with a log loss of 0.3411. This is therefore the model that we will use in our API!
 
+Now that we have found our best performing model, we need to fit it to the entire dataset, not just testing, and save that workflow to reuse it in our API to avoid rerunning it.
 ```{r}
-#Fit the random foret on the entire dataset
+#Fit the random forest onto the entire dataset
 rf_final_wkf_fit<- rf_final_wkf |>
   fit(data = diab_data)
-#Saving our worfklow to avoid rerunning in the API each time
+#Saving our workflow to avoid rerunning in the API each time
 saveRDS(rf_final_wkf_fit, "RF_wkf.rds")
 ```
 

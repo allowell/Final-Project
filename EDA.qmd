@@ -32,35 +32,33 @@ diab_data <- diab_data |>
 
 The variables I am most interested in exploring in this EDA are BMI, Age and HighBP. After doing some research on diabetes, I found that these factors are included in the CDC's Diabetes risk factors (https://www.cdc.gov/diabetes/risk-factors/index.html). Specifically, being overweight and being over the age of 45 are listed as factors that can influence if a person has diabetes, so I felt that BMI and Age were good factors to include to improve prediction. I also found that diabetes and high blood pressure often occur together, which is why I felt it was important to include that as another variable (https://www.hopkinsmedicine.org/health/conditions-and-diseases/diabetes/diabetes-and-high-blood-pressure).
 
-First, I am going to explore how our diabetes binary variable is set up.
+### Univariate Explorations
 
+First, exploring the counts and percentages of the binary diabetes varible (our response).
 ```{r}
 table(diab_data$Diabetes_binary)
 none <- sum(diab_data$Diabetes_binary == 0)/nrow(diab_data)
 diabetes <- sum(diab_data$Diabetes_binary == 1)/nrow(diab_data)
 c(none, diabetes)
 ```
-
 We can see that about 86% of the total respondents of this survey did not have diabetes, whereas aroud 14% did have diabetes.
 
-Next, I want to explore how many people in each age category had diabetes.
-
+Next, looking at our binary variable for High Blood Pressure
 ```{r}
-table(diab_data$Diabetes_binary, diab_data$Age)
+table(diab_data$HighBP)
+no_high_bp <- sum(diab_data$HighBP == 0)/nrow(diab_data)
+high_bp <- sum(diab_data$HighBP == 1)/nrow(diab_data)
+c(no_high_bp, high_bp)
 ```
+We can see that around 57% of the people who responded to this survery did not have high blood pressure, whereas around 43% did have high blood pressure. There is a much smaller difference in the number of respondents in each category of this variable than there were for the diabetes variable.
 
-For those that do have diabetes, it definitely seems like there is some correlation between older age and having diabetes.
-
-Next, looking at the binary variable for high blood pressure versus our diabetes variable.
-
+Next, looking at our factored Age variable
 ```{r}
-table(diab_data$Diabetes_binary, diab_data$HighBP)
+table(diab_data$Age)
 ```
+There are 13 total age groups, with the most common age groups being 8, 9 and 10.
 
-We can see that the vast majority of respondents did not have high blood pressure or diabetes, however a large number of respondents with diabetes also had high blood pressure, indicating a relationship between the two as mentioned earlier.
-
-Next, I want to explore the BMI variable.
-
+Lastly for our univariate analyses, we are looking at BMI
 ```{r}
 summary_bmi <- diab_data %>%
   summarise(
@@ -69,28 +67,38 @@ summary_bmi <- diab_data %>%
   )
 print(summary_bmi)
 ```
-
 We can see that the mean BMI is 28.38, with a standard deviation of 6.61. According to the CDC, this BMI corresponds to overweight for adults. However, since there is such high variability, we might have some outliers influencing this number.
 
-Next, I would like to explore some visualizations of our variables. Starting with Age colored by diabetes.
+### Bivariate Exploration
 
+Next, I want to explore how many people in each age category had diabetes.
 ```{r}
-#Dist of diabetes
+table(diab_data$Diabetes_binary, diab_data$Age)
+```
+
+For those that do have diabetes, it definitely seems like there is some correlation between older age and having diabetes.
+
+Next, looking at the binary variable for high blood pressure versus our diabetes variable.
+```{r}
+table(diab_data$Diabetes_binary, diab_data$HighBP)
+```
+We can see that the vast majority of respondents did not have high blood pressure or diabetes, however a large number of respondents with diabetes also had high blood pressure, indicating a relationship between the two as mentioned earlier.
+
+
+Next, I would like to explore some visualizations of our variables. Starting with Age colored by diabetes.
+```{r}
 ggplot(diab_data, aes(x = Age, fill = Diabetes_binary)) +
   geom_bar() +
   labs(title = "Distribution of Diabetes Status", x = "Diabetes Status", y = "Count")
 ```
 
 For our next graph, I want to look at the boxplots for BMI between the different values of our diabetes binary variable.
-
 ```{r}
-#BMI by diabetes
 ggplot(diab_data, aes(x = Diabetes_binary, y = BMI)) +
   geom_boxplot(fill = "red") +
   scale_x_discrete(labels = c("0" = "No Diabetes", "1" = "Diabetes")) +
   labs(title = "BMI by Diabetes Status", x = "Diabetes Status", y = "BMI")
 ```
-
 As we can see, the BMI for Diabetes looks to be higher on average, though they do overlap. Both distributions contain a large amount of high outliers.
 
 Now that we have finished an exploratory data analysis, we will move on to the Modeling portion and attempt to predict the binary diabetes variable using the three variable outlined here.
