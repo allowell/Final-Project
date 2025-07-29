@@ -9,11 +9,12 @@ library(tidyverse)
 diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
 
 #Fit best model: random forest
+#Loading this in, also in hopes this works on my main Mac machine
 RF_wkf_API <- readRDS("RF_wkf.rds")
 
 #Setting initial default values
 def_Age <- names(which.max(table(diab_data$Age)))
-def_HighBP <- factor(as.numeric(names(which.max(table(diab_data$HighBP)))))
+def_HighBP <- as.numeric(names(which.max(table(diab_data$HighBP))))
 def_BMI <- mean(diab_data$BMI)
 
 
@@ -44,6 +45,19 @@ function() {
     name = "Allison McDowell",
     github_site = "https://github.com/allowell/Final-Project")
 }
+
+
+#3 example function calls to the API
+
+#Example 1: default
+#http://127.0.0.1:27504/predict
+
+#Example 2: info
+#http://127.0.0.1:27504/info
+
+#Example 3: change highbp to 1, age to 10, BMI to 30
+#http://127.0.0.1:27504/predict?Age=10&HighBP=1&BMI=30
+
 
 
 
