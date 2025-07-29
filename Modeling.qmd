@@ -208,6 +208,13 @@ rbind(log_final_fit |> collect_metrics(),
 ```
 As we can see, the model with the lowest log loss is the random forest model, with a log loss of 0.3411.
 
+```{r}
+#Fit the random foret on the entire dataset
+rf_final_wkf_fit<- rf_final_wkf |>
+  fit(data = diab_data)
+#Saving our worfklow to avoid rerunning in the API each time
+saveRDS(rf_final_wkf_fit, "RF_wkf.rds")
+```
 
 
 
