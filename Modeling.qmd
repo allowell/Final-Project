@@ -231,5 +231,3 @@ rf_final_wkf_fit<- rf_final_wkf |>
 #Saving our workflow to avoid rerunning in the API each time
 saveRDS(rf_final_wkf_fit, "RF_wkf.rds")
 ```
-
-
