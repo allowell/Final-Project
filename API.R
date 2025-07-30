@@ -5,6 +5,7 @@ library(plumber)
 library(dplyr)
 library(tidyverse)
 library(tidymodels)
+library(ranger)
 
 #Reading in the data
 diab_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
