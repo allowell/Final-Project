@@ -116,4 +116,4 @@ As we can see, the BMI for Diabetes looks to be higher on average, though they d
 
 Now that we have finished an exploratory data analysis, we will move on to the Modeling portion and attempt to predict the binary diabetes variable using the three variable outlined here.
 
-[Click here for the EDA Page](EDA.html)
+[Click here for the Modeling Page](Modeling.html)

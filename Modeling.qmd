@@ -66,6 +66,7 @@ diab_folds <- vfold_cv(train, 5)
 Next, we will begin fitting models to find the best predictor of our test set. We will start with logistic regression, which is a type of regression model that lets us fit models based on response variables that are not numeric. We use this when our response is binary or factored, for example. In this dataset, we are interested in predicting the diabetes binary variable, meaning that logistic regression will work well here.
 
 First, setting up the model type and engine that will be used for all three of our potential logistic regression models.
+
 ```{r}
 LR_spec <- logistic_reg() |>
   set_engine("glm")
@@ -201,6 +202,7 @@ rf_final_wkf <- rf_wkf |>
 ### Find Best Model
 
 To find the best model, we are going to fit the logistic regression model, classification tree and random forest model onto the testing data and select the best one based on log loss like we did when comparing logistic regression models.
+
 ```{r}
 #Fit each model onto test set
 log_final_fit <- LR3_wkf |>
@@ -217,9 +219,11 @@ rbind(log_final_fit |> collect_metrics(),
   mutate(Model = c("Logistic Regression", "Classification Tree", "Random Forest")) |>
   select(Model, everything())
 ```
+
 As we can see, the model with the lowest log loss is the random forest model, with a log loss of 0.3411. This is therefore the model that we will use in our API!
 
 Now that we have found our best performing model, we need to fit it to the entire dataset, not just testing, and save that workflow to reuse it in our API to avoid rerunning it.
+
 ```{r}
 #Fit the random forest onto the entire dataset
 rf_final_wkf_fit<- rf_final_wkf |>
@@ -229,14 +233,3 @@ saveRDS(rf_final_wkf_fit, "RF_wkf.rds")
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-[Click here for the Modeling Page](Modeling.html)
